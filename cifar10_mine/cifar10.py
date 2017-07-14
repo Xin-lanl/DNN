@@ -45,6 +45,9 @@ import tensorflow as tf
 
 import cifar10_input
 
+import numpy as np
+import scipy.stats as ss
+
 FLAGS = tf.app.flags.FLAGS
 
 # Basic model parameters.
