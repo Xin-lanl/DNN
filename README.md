@@ -2,4 +2,4 @@
 
 Resources and research on deep neural networks
 
-Focuse on simplifying DNNs
+Try to deduct neurons in DNNs
