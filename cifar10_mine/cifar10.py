@@ -192,13 +192,13 @@ def parameters_init():
   w1 = np.float32(ss.truncnorm.rvs(0, 5e-2, size=[5, 5, 3, 64]))
   b1 = np.zeros(64, dtype='f')
   w2 = np.float32(ss.truncnorm.rvs(0, 5e-2, size=[5, 5, 64, 64]))
-  b2 = np.zeros(192, dtype='f')
+  b2 = np.zeros(64, dtype='f')
   w3 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[756, 384]))
   b3 = np.zeros(384, dtype='f')
   w4 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[384, 384]))
   b4 = np.zeros(384, dtype='f')
   w5 = np.float32(ss.truncnorm.rvs(0, 1/384.0, size=[384, 10]))
-  b5 = np.zeros(10, dtype='f') 
+  b5 = np.zeros(10, dtype='f')
   return (w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
 
 def parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5):
@@ -225,7 +225,7 @@ def inference(images, parameters, dropout_prob):
   net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
   net = tf.nn.max_pool(net, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
   # conv2
-  net = tf.nn.conv2d(norm1, parameters['w_conv2'], [1, 1, 1, 1], padding='SAME')
+  net = tf.nn.conv2d(net, parameters['w_conv2'], [1, 1, 1, 1], padding='SAME')
   net = tf.nn.bias_add(net, parameters['b_conv2'])
   net = tf.nn.relu(net)
   net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75)
@@ -242,7 +242,7 @@ def inference(images, parameters, dropout_prob):
   # output
   net = tf.add(tf.matmul(net, parameters['w_out']), parameters['b_out'])
 
-  return net  
+  return net 
 
 def loss(logits, labels):
   """Add L2Loss to all the trainable variables.
