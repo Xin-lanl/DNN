@@ -70,8 +70,8 @@ def train():
     print("parameters init")
     # Build a Graph that computes the logits predictions from the
     # inference model.
-    w1, b1, w2, b2, w3, b3, w4, b4, w5, b5 = parameters_init()
-    parameters = parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
+    w1, b1, w2, b2, w3, b3, w4, b4, w5, b5 = cifar10.parameters_init()
+    parameters = cifar10.parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
     logits = cifar10.inference(images, parameters, dropout_prob)
 
     # Calculate loss.
