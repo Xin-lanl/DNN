@@ -193,7 +193,7 @@ def parameters_init():
   b1 = np.zeros(64, dtype='f')
   w2 = np.float32(ss.truncnorm.rvs(0, 5e-2, size=[5, 5, 64, 64]))
   b2 = np.zeros(64, dtype='f')
-  w3 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[756, 384]))
+  w3 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[2304, 384]))
   b3 = np.zeros(384, dtype='f')
   w4 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[384, 384]))
   b4 = np.zeros(384, dtype='f')
