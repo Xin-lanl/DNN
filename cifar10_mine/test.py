@@ -74,48 +74,52 @@ def loss(logits, labels):
   cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
   return cross_entropy_mean
 
-cifar10.maybe_download_and_extract()
-if tf.gfile.Exists(FLAGS.train_dir):
-  tf.gfile.DeleteRecursively(FLAGS.train_dir)
-tf.gfile.MakeDirs(FLAGS.train_dir)
+def main():
+  cifar10.maybe_download_and_extract()
+  if tf.gfile.Exists(FLAGS.train_dir):
+    tf.gfile.DeleteRecursively(FLAGS.train_dir)
+  tf.gfile.MakeDirs(FLAGS.train_dir)
 
-TRAINING_ITERATION = 1000
-RESTRUCT_ITERATION = 10000
-NUM_EPOCHS_PER_DECAY = 350.0
-LEARNING_RATE_DECAY_FACTOR = 0.1
-INITIAL_LEARNING_RATE = 0.1
-BATCH_SIZE = 128
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+  TRAINING_ITERATION = 1000
+  RESTRUCT_ITERATION = 10000
+  NUM_EPOCHS_PER_DECAY = 350.0
+  LEARNING_RATE_DECAY_FACTOR = 0.1
+  INITIAL_LEARNING_RATE = 0.1
+  BATCH_SIZE = 128
+  NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+  NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 
-w1, b1, w2, b2, w3, b3, w4, b4, w5, b5 = parameters_init()
-last_lr = INITIAL_LEARNING_RATE
-_iter = 0
-while _iter < TRAINING_ITERATION:
-  parameters = parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
-  global_step = tf.Variable(_iter, trainable=False)
-  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
-  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
-  learning_rate = tf.train.exponential_decay(last_lr, global_step, decay_steps, LEARNING_RATE_DECAY_FACTOR, staircase=True)
-  images, labels = cifar10.distorted_inputs()
-  dropout_prob = 0.2
-  logits = inference(images, parameters, dropout_prob)
-  cost = loss(logits, labels)
-  optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-  init = tf.global_variables_initializer()
-  sub_iter = 0
-  with tf.Session() as sess:
-    sess.run(init)
-    aver_cost = 0.0
-    start = time.time()
-    while sub_iter < RESTRUCT_ITERATION:
-      # Train
-      _, c = sess.run([optimizer, cost])
-      aver_cost += c / BATCH_SIZE
-      sub_iter += 1
-      if sub_iter % 10 == 0:
-        duration = time.time() - start
-        print("iter %d: loss %f time %f" % (sub_iter, aver_cost, duration))
-        aver_cost = 0.0
-        start = time.time()
-  _iter += sub_iter
+  w1, b1, w2, b2, w3, b3, w4, b4, w5, b5 = parameters_init()
+  last_lr = INITIAL_LEARNING_RATE
+  _iter = 0
+  while _iter < TRAINING_ITERATION:
+    parameters = parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
+    global_step = tf.Variable(_iter, trainable=False)
+    num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
+    decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+    learning_rate = tf.train.exponential_decay(last_lr, global_step, decay_steps, LEARNING_RATE_DECAY_FACTOR, staircase=True)
+    images, labels = cifar10.distorted_inputs()
+    dropout_prob = 0.2
+    logits = inference(images, parameters, dropout_prob)
+    cost = loss(logits, labels)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+    init = tf.global_variables_initializer()
+    sub_iter = 0
+    with tf.Session() as sess:
+      sess.run(init)
+      aver_cost = 0.0
+      start = time.time()
+      while sub_iter < RESTRUCT_ITERATION:
+        # Train
+        _, c = sess.run([optimizer, cost])
+        aver_cost += c / BATCH_SIZE
+        sub_iter += 1
+        if sub_iter % 10 == 0:
+          duration = time.time() - start
+          print("iter %d: loss %f time %f" % (sub_iter, aver_cost, duration))
+          aver_cost = 0.0
+          start = time.time()
+    _iter += sub_iter
+
+if __name__ == '__main__':
+  tf.app.run()
