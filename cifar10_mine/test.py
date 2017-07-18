@@ -8,11 +8,11 @@ def parameters_init():
   b1 = np.zeros(64, dtype='f')
   w2 = np.float32(ss.truncnorm.rvs(0, 5e-2, size=[5, 5, 64, 64]))
   b2 = np.zeros(64, dtype='f')
-  w3 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[756, 384]))
-  b3 = np.zeros(384, dtype='f')
-  w4 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[384, 384]))
-  b4 = np.zeros(384, dtype='f')
-  w5 = np.float32(ss.truncnorm.rvs(0, 1/384.0, size=[384, 10]))
+  w3 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[2304, 512]))
+  b3 = np.zeros(512, dtype='f')
+  w4 = np.float32(ss.truncnorm.rvs(0, 0.04, size=[512, 512]))
+  b4 = np.zeros(512, dtype='f')
+  w5 = np.float32(ss.truncnorm.rvs(0, 1/512.0, size=[512, 10]))
   b5 = np.zeros(10, dtype='f')
   return (w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
 
@@ -56,19 +56,48 @@ def inference(images, parameters, dropout_prob):
   net = tf.nn.dropout(net, 1 - dropout_prob)
   # output
   net = tf.add(tf.matmul(net, parameters['w_out']), parameters['b_out'])
-
   return net 
 
+def loss(logits, labels):
+  labels = tf.cast(labels, tf.int64)
+  cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+      labels=labels, logits=logits, name='cross_entropy_per_example')
+  cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+  loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
+  loss_averages_op = loss_averages.apply([cross_entropy_mean, total_loss])
+  return loss_averages_op
+
+TRAINING_ITERATION = 1000
+RESTRUCT_ITERATION = 10000
+NUM_EPOCHS_PER_DECAY = 350.0
+LEARNING_RATE_DECAY_FACTOR = 0.1
+INITIAL_LEARNING_RATE = 0.1
+BATCH_SIZE = 128
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+
 w1, b1, w2, b2, w3, b3, w4, b4, w5, b5 = parameters_init()
-parameters = parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
-x = tf.placeholder(tf.float32, [None, 32, 32, 3])
-y = tf.placeholder(tf.float32, [None, 10])
-# alexnet(x, parameters, 0.8)
-dropout_prob = 0.2
-pred = inference(x, parameters, dropout_prob)
-# Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
-optimizer = tf.train.AdamOptimizer(learning_rate=0.1).minimize(cost)
+last_lr = INITIAL_LEARNING_RATE
+_iter = 0
+while _iter < TRAINING_ITERATION
+  parameters = parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
+  global_step = tf.Variable(_iter, trainable=False)
+  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCK_FOR_TRAIN / BATCH_SIZE
+  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+  learning_rate = tf.train.exponential_decay(learning_rate=last_lr, global_step, decay_steps, LEARNING_RATE_DECAY_FACTOR, staircase=True)
+  images, labels = cifar10.distorted_inputs()
+  dropout_prob = 0.2
+  logits = inference(x, parameters, dropout_prob)
+  cost = loss(logits, labels)
+  optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 # Evaluate model
 correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+  init = tf.global_variables_initializer()
+  sub_iter = 0
+  while sub_iter < RESTRUCT_ITERATION
+    # Train
+    with tf.Session(log_device_placement=True) as sess:
+      sess.run(init)
+
+
