@@ -79,7 +79,7 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 w1, b1, w2, b2, w3, b3, w4, b4, w5, b5 = parameters_init()
 last_lr = INITIAL_LEARNING_RATE
 _iter = 0
-while _iter < TRAINING_ITERATION
+while _iter < TRAINING_ITERATION:
   parameters = parameters_conf(w1, b1, w2, b2, w3, b3, w4, b4, w5, b5)
   global_step = tf.Variable(_iter, trainable=False)
   num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCK_FOR_TRAIN / BATCH_SIZE
@@ -90,14 +90,20 @@ while _iter < TRAINING_ITERATION
   logits = inference(x, parameters, dropout_prob)
   cost = loss(logits, labels)
   optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-# Evaluate model
-correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
   init = tf.global_variables_initializer()
   sub_iter = 0
-  while sub_iter < RESTRUCT_ITERATION
-    # Train
-    with tf.Session(log_device_placement=True) as sess:
-      sess.run(init)
-
-
+  with tf.Session(tf.ConfigProto(log_device_placement=True)) as sess:
+    sess.run(init)
+    aver_cost = 0.0
+    start = time.time()
+    while sub_iter < RESTRUCT_ITERATION:
+      # Train
+      _, c = sess.run([optimizer, cost])
+      aver_cost += c / BATCH_SIZE
+      sub_iter ++
+      if sub_iter % 10 == 0:
+        duration = time.time() - start
+        print("iter %d: loss %f time %f" % (sub_iter, aver_cost, duration))
+        aver_cost = 0.0
+        start = time.time()
+  _iter += sub_iter
