@@ -48,7 +48,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', 'cifar10_dynamic_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_steps', 10000,
+tf.app.flags.DEFINE_integer('max_steps', 100,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -59,28 +59,32 @@ tf.app.flags.DEFINE_integer('log_frequency', 10,
 def dynamic_train():
   stable = False
   start = True
-  parameters = None
+  steps = 0
+  parameters = {}
   while not stable:
+    print("training cifar10 in steps: %d" % steps)
     """Train CIFAR-10 for a number of steps."""
     with tf.Graph().as_default():
       global_step = tf.contrib.framework.get_or_create_global_step()
-
       # Get images and labels for CIFAR-10.
       # Force input pipeline to CPU:0 to avoid operations sometimes ending up on
       # GPU and resulting in a slow down.
       with tf.device('/cpu:0'):
         images, labels = cifar10.distorted_inputs()
 
+      #print(parameters['w_conv1'])
       # Build a Graph that computes the logits predictions from the
       # inference model.
-      logits = cifar10.inference(images, parameters)
-
+      if steps == 0:
+        logits = cifar10.inference(images)
+      else:
+        logits = cifar10.inference(images, parameters)
       # Calculate loss.
       loss = cifar10.loss(logits, labels)
 
       # Build a Graph that trains the model with one batch of examples and
       # updates the model parameters.
-      train_op = cifar10.train(loss, global_step)
+      train_op = cifar10.train(loss, global_step, steps)
 
       class _LoggerHook(tf.train.SessionRunHook):
         """Logs loss and runtime."""
@@ -107,31 +111,36 @@ def dynamic_train():
                           'sec/batch)')
             print (format_str % (datetime.now(), self._step, loss_value,
                                  examples_per_sec, sec_per_batch))
-          if self._step + 1 == FLAGS.max_steps:
+          
+	def end(self, session):
             # record variables
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-            steps = variables[0].eval(session=mon_sess)
-            parameters['w_conv1'] = variables[1].eval(session=mon_sess)
-            parameters['b_conv1'] = variables[2].eval(session=mon_sess)
-            parameters['w_conv2'] = variables[3].eval(session=mon_sess)
-            parameters['b_conv2'] = variables[4].eval(session=mon_sess)
-            parameters['w_fc1'] = variables[5].eval(session=mon_sess)
-            parameters['b_fc1'] = variables[6].eval(session=mon_sess)
-            parameters['w_fc2'] = variables[7].eval(session=mon_sess)
-            parameters['b_fc2'] = variables[8].eval(session=mon_sess)
-            parameters['w_out'] = variables[9].eval(session=mon_sess)
-            parameters['b_out'] = variables[10].eval(session=mon_sess)
+	    # print(variables)
+	    if(steps > 3000):
+	      stable = True
+            parameters['w_conv1'] = variables[1].eval(session=session)
+            parameters['b_conv1'] = variables[2].eval(session=session)
+            parameters['w_conv2'] = variables[3].eval(session=session)
+            parameters['b_conv2'] = variables[4].eval(session=session)
+            parameters['w_fc1'] = variables[5].eval(session=session)
+            parameters['b_fc1'] = variables[6].eval(session=session)
+            parameters['w_fc2'] = variables[7].eval(session=session)
+            parameters['b_fc2'] = variables[8].eval(session=session)
+            parameters['w_out'] = variables[9].eval(session=session)
+            parameters['b_out'] = variables[10].eval(session=session)
             
       with tf.train.MonitoredTrainingSession(
           checkpoint_dir=FLAGS.train_dir,
           hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
                  tf.train.NanTensorHook(loss),
                  _LoggerHook()],
+	  save_checkpoint_secs=None,
           config=tf.ConfigProto(
               log_device_placement=FLAGS.log_device_placement)) as mon_sess:
         while not mon_sess.should_stop():
           mon_sess.run(train_op)
-
+      steps += FLAGS.max_steps
+      print("steps: %d" % steps)
 
 def main(argv=None):  # pylint: disable=unused-argument
   cifar10.maybe_download_and_extract()
