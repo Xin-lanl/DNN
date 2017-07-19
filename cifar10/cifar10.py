@@ -110,7 +110,8 @@ def _variable_on_cpu(name, shape, initializer, init = None):
     dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
     if init is None:
       var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
-    else
+    else:
+      # print("init with parameters")
       var = tf.Variable(init, dtype = dtype)
   return var
 
@@ -135,7 +136,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd, init = None):
   var = _variable_on_cpu(
       name,
       shape,
-      tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+      tf.truncated_normal_initializer(stddev=stddev, dtype=dtype), init=init)
   if wd is not None:
     weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
     tf.add_to_collection('losses', weight_decay)
@@ -272,6 +273,7 @@ def inference(images, parameters = None):
       softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
       _activation_summary(softmax_linear)
   else:
+    print("inference with parameters")
     # conv1
     with tf.variable_scope('conv1') as scope:
       kernel = _variable_with_weight_decay('weights',
@@ -395,7 +397,7 @@ def _add_loss_summaries(total_loss):
   return loss_averages_op
 
 
-def train(total_loss, global_step):
+def train(total_loss, global_step, passed_steps):
   """Train CIFAR-10 model.
 
   Create an optimizer and apply to all trainable variables. Add moving
@@ -414,7 +416,7 @@ def train(total_loss, global_step):
 
   # Decay the learning rate exponentially based on the number of steps.
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-                                  global_step,
+                                  global_step + passed_steps,
                                   decay_steps,
                                   LEARNING_RATE_DECAY_FACTOR,
                                   staircase=True)
