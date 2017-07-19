@@ -42,7 +42,7 @@ import time
 import tensorflow as tf
 
 import cifar10
-
+import resource
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('train_dir', 'cifar10_dynamic_train',
@@ -54,17 +54,21 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                             """How often to log results to the console.""")
-
+tf.app.flags.DEFINE_boolean('stable', False,
+                            """Training stop flag.""")
 
 def dynamic_train():
-  stable = False
   start = True
   steps = 0
   parameters = {}
-  while not stable:
+  while not FLAGS.stable:
     print("training cifar10 in steps: %d" % steps)
+    # r0=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # print ("@test mem:%dM" % (r0/1024))
     """Train CIFAR-10 for a number of steps."""
+    # tf.reset_default_graph()
     with tf.Graph().as_default():
+      print(FLAGS.stable)
       global_step = tf.contrib.framework.get_or_create_global_step()
       # Get images and labels for CIFAR-10.
       # Force input pipeline to CPU:0 to avoid operations sometimes ending up on
@@ -92,7 +96,7 @@ def dynamic_train():
         def begin(self):
           self._step = -1
           self._start_time = time.time()
-
+	  self._saver = tf.train.Saver()
         def before_run(self, run_context):
           self._step += 1
           return tf.train.SessionRunArgs(loss)  # Asks for loss value.
@@ -115,9 +119,11 @@ def dynamic_train():
 	def end(self, session):
             # record variables
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-	    # print(variables)
-	    if(steps > 3000):
-	      stable = True
+	    cur_step = steps + FLAGS.max_steps
+	    if(cur_step >= 1000):
+	      print("reaching end")
+	      FLAGS.stable = True
+	      save_path = self._saver.save(session, "cifar10_dynamic_train/model.ckpt-{}".format(cur_step))
             parameters['w_conv1'] = variables[1].eval(session=session)
             parameters['b_conv1'] = variables[2].eval(session=session)
             parameters['w_conv2'] = variables[3].eval(session=session)
@@ -128,7 +134,18 @@ def dynamic_train():
             parameters['b_fc2'] = variables[8].eval(session=session)
             parameters['w_out'] = variables[9].eval(session=session)
             parameters['b_out'] = variables[10].eval(session=session)
-            
+            print(parameters['w_fc1'].shape)
+            print(parameters['b_fc1'].shape)
+            print(parameters['w_fc2'].shape)
+	    dim1 = parameters['w_fc1'].shape[0]
+	    dim2 = parameters['w_fc1'].shape[1]
+	    dim3 = parameters['w_fc2'].shape[0]
+	    dim2 = int(dim2 * 0.9)
+            print(dim2)
+            parameters['w_fc1'] = parameters['w_fc1'][:, 0:dim2]
+	    parameters['b_fc1'] = parameters['b_fc1'][0:dim2]
+	    parameters['w_fc2'] = parameters['w_fc2'][0:dim2, :]
+
       with tf.train.MonitoredTrainingSession(
           checkpoint_dir=FLAGS.train_dir,
           hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
@@ -140,7 +157,8 @@ def dynamic_train():
         while not mon_sess.should_stop():
           mon_sess.run(train_op)
       steps += FLAGS.max_steps
-      print("steps: %d" % steps)
+      # print("steps: %d" % steps)
+  
 
 def main(argv=None):  # pylint: disable=unused-argument
   cifar10.maybe_download_and_extract()
