@@ -110,8 +110,9 @@ def _variable_on_cpu(name, shape, initializer, init = None):
     dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
     if init is None:
       var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
-    else
-      var = tf.Variable(init, dtype = dtype)
+    else:
+      # print("init with parameters")
+      var = tf.Variable(init, name=name, dtype = dtype)
   return var
 
 
@@ -135,7 +136,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd, init = None):
   var = _variable_on_cpu(
       name,
       shape,
-      tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+      tf.truncated_normal_initializer(stddev=stddev, dtype=dtype), init=init)
   if wd is not None:
     weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
     tf.add_to_collection('losses', weight_decay)
@@ -272,6 +273,7 @@ def inference(images, parameters = None):
       softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
       _activation_summary(softmax_linear)
   else:
+    # print("inference with parameters")
     # conv1
     with tf.variable_scope('conv1') as scope:
       kernel = _variable_with_weight_decay('weights',
@@ -315,17 +317,19 @@ def inference(images, parameters = None):
       # Move everything into depth so we can perform a single matrix multiply.
       reshape = tf.reshape(pool2, [FLAGS.batch_size, -1])
       dim = reshape.get_shape()[1].value
-      weights = _variable_with_weight_decay('weights', shape=[dim, 384],
+      dim2 = parameters['b_fc1'].size
+      weights = _variable_with_weight_decay('weights', shape=[dim, dim2],
                                             stddev=0.04, wd=0.004, init = parameters['w_fc1'])
-      biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1), init = parameters['b_fc1'])
+      biases = _variable_on_cpu('biases', [dim2], tf.constant_initializer(0.1), init = parameters['b_fc1'])
       local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
       _activation_summary(local3)
 
     # local4
     with tf.variable_scope('local4') as scope:
-      weights = _variable_with_weight_decay('weights', shape=[384, 384],
+      dim3 = parameters['b_fc2'].size
+      weights = _variable_with_weight_decay('weights', shape=[dim2, dim3],
                                             stddev=0.04, wd=0.004, init = parameters['w_fc2'])
-      biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1), init = parameters['b_fc2'])
+      biases = _variable_on_cpu('biases', [dim3], tf.constant_initializer(0.1), init = parameters['b_fc2'])
       local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
       _activation_summary(local4)
 
@@ -334,7 +338,7 @@ def inference(images, parameters = None):
     # tf.nn.sparse_softmax_cross_entropy_with_logits accepts the unscaled logits
     # and performs the softmax internally for efficiency.
     with tf.variable_scope('softmax_linear') as scope:
-      weights = _variable_with_weight_decay('weights', [384, NUM_CLASSES],
+      weights = _variable_with_weight_decay('weights', [dim3, NUM_CLASSES],
                                             stddev=1/384.0, wd=0.0, init = parameters['w_out'])
       biases = _variable_on_cpu('biases', [NUM_CLASSES],
                                 tf.constant_initializer(0.0), init = parameters['b_out'])
@@ -395,7 +399,7 @@ def _add_loss_summaries(total_loss):
   return loss_averages_op
 
 
-def train(total_loss, global_step):
+def train(total_loss, global_step, passed_steps):
   """Train CIFAR-10 model.
 
   Create an optimizer and apply to all trainable variables. Add moving
@@ -414,7 +418,7 @@ def train(total_loss, global_step):
 
   # Decay the learning rate exponentially based on the number of steps.
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-                                  global_step,
+                                  global_step + passed_steps,
                                   decay_steps,
                                   LEARNING_RATE_DECAY_FACTOR,
                                   staircase=True)
