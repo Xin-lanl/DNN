@@ -19,7 +19,7 @@ def mf_by_sgd(W_, m, n, r=0):
 		min_sz = min(m, n)
 		if r == min_sz:
 			print("converged!")
-			return (False, np.identity(r), W_, r)	
+			return (True, np.identity(r), W_, r)	
 		# if r < min_sz*0.9:
 		# 	r = int(min_sz * 0.9) 
 
@@ -78,7 +78,7 @@ def mf_by_sgd(W_, m, n, r=0):
 	# print "final diff"
 	# print np.subtract(W_, np.matmul(output_W1, output_W2))
 	# end
-	return (True, output_W1, output_W2, r)
+	return (False, output_W1, output_W2, r)
 
 # W_ = W1 * W2, W1 = [I;B] W2 = S_rVD, estimate BS_r for S_(n-r)
 def mf_by_svd(W_, m, n):
@@ -90,9 +90,9 @@ def mf_by_svd(W_, m, n):
 	simp_v = v[np.where(v>v[0]*0.1)]
 	r = len(simp_v)
 	print("r: %s" % r)
-	if r==m or r==m:
+	if r==m and r==n:
 		print("converged!")
-		return (False, np.identity(r), W_, r)
+		return (True, np.identity(r), W_, r)
 	# print m
 	# print n
 	# print(v.shape)
@@ -154,7 +154,7 @@ def mf_by_svd(W_, m, n):
 	# print "final diff"
 	# print np.subtract(W_, np.matmul(output_W1, output_W2))
 	# end
-	return (True, output_W1, output_W2, r)
+	return (False, output_W1, output_W2, r)
 
 # W_ = W1 * W2, W1 = [I;B], estimate BW2 for W_(n-r)
 def mf_by_half_identity(W_, m, n):
@@ -166,9 +166,9 @@ def mf_by_half_identity(W_, m, n):
 	simp_v = v[np.where(v>v[0]*0.1)]
 	r = len(simp_v)
 	print("r: %s" % r)
-	if r==m or r==m:
+	if r==m and r==n:
 		print("converged!")
-		return (False, np.identity(r), W_, r)
+		return (True, np.identity(r), W_, r)
 
 	output_W2 = W_[0:r, :]
 	W_rest = W_[r:m, :] 
@@ -210,42 +210,58 @@ def mf_by_half_identity(W_, m, n):
 	# print "final diff"
 	# print np.subtract(W_, np.matmul(output_W1, output_W2))
 	# end
-	return (True, output_W1, output_W2, r)	
+	return (False, output_W1, output_W2, r)	
 
-def random_dropout(W_, m, n):
+def random_dropout(W_, m, n, rate = 0.05):
 
 	if m == n:
 		s, v, d = np.linalg.svd(W_, full_matrices=False)
-		simp_v = v[np.where(v>v[0]*0.1)]
+		threshold = np.mean(v[0:10]) * rate
+		print("threshold: %f" % threshold)
+		simp_v = v[np.where(v>threshold)]
 		r = len(simp_v)
-		print("r: %s" % r)
-		if r==m or r==m:
+		print("r: %d" % r)
+		if r==m:
 			print("converged!")
-			return (False, range(0, r), r)
+			return (True, range(0, r), r)
 
 		rest = np.sort(np.random.choice(m, r, replace=False))
-		return (True, rest, r)
+		return (False, rest, r)
 	else:
-		r = m
-		rest = np.sort(np.random.choice(n, r, replace=False))
-		return (True, rest, r)
+		r = n
+		rest = np.sort(np.random.choice(m, r, replace=False))
+		return (False, rest, r)
 
-def dropout_last(W_, m, n):
+def dropout_last(W_, m, n, rate = 0.05):
 
 	if m == n:
 		s, v, d = np.linalg.svd(W_, full_matrices=False)
-		simp_v = v[np.where(v>v[0]*0.1)]
+		threshold = np.mean(v[0:10]) * rate
+		simp_v = v[np.where(v>threshold)]
 		r = len(simp_v)
+		print("threshold: %f" % threshold)
 		print("r: %s" % r)
-		if r==m or r==m:
+		if r==m:
 			print("converged!")
-			return (False, range(0, r), r)
+			return (True, range(0, r), r)
 		rest = range(0, r)
-		return (True, rest, r)
+		return (False, rest, r)
 	else:
-		r = m
+		r = n
 		rest = range(0, r)
-		return (True, rest, r)
+		return (False, rest, r)
+
+def two_layer_random_dropout(W_, m, n):
+
+	s, v, d = np.linalg.svd(W_, full_matrices=False)
+	simp_v = v[np.where(v>v[0]*0.1)]
+	r = len(simp_v)
+	print("r: %s" % r)
+	if r==m:
+		print("converged!")
+		return (True, range(0, r), r)
+	rest = np.sort(np.random.choice(m, r, replace=False))
+	return (False, rest, r)
 
 # W = np.random.randn(600, 600)
 # W1, W2 = mf_by_sgd(W, 600, 600, 500)

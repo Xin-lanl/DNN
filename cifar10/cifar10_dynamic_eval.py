@@ -49,7 +49,7 @@ tf.app.flags.DEFINE_string('eval_dir', 'cifar10_dynamic_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', 'cifar10_dynamic_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', 'cifar10_dynamic_train_after_restruct',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -122,7 +122,9 @@ def evaluate():
 
     # Build a Graph that computes the logits predictions from the
     # inference model.
-    logits = cifar10.inference(images)
+    # logits = cifar10.inference_eval(images)
+    # logits = cifar10.inference_eval_restruct(images, True)
+    logits = cifar10.inference_eval_restruct(images, False)
 
     # Calculate predictions.
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
