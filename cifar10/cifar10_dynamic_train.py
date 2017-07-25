@@ -95,7 +95,6 @@ def dynamic_train():
       # updates the model parameters.
       train_op = cifar10.train(loss, global_step, steps)
 
-      steps += FLAGS.max_steps
       class _LoggerHook(tf.train.SessionRunHook):
         """Logs loss and runtime."""
 
@@ -103,6 +102,16 @@ def dynamic_train():
           self._step = -1
           self._start_time = time.time()
 	  self._saver = tf.train.Saver()
+
+	def after_create_session(self, session, coord):
+	  if steps > 0:
+            save_path = self._saver.save(session, "cifar10_dynamic_train_after_restruct/model.ckpt-{}".format(steps))
+            with open("cifar10_dynamic_train_after_restruct/struct{}.txt".format(steps), "w") as file:
+              file.write(str(parameters['b_conv1'].shape[0]) + ' ')
+              file.write(str(parameters['b_conv2'].shape[0]) + ' ')
+              file.write(str(parameters['w_fc1'].shape[1]) + ' ')
+              file.write(str(parameters['w_fc2'].shape[1]))
+
         def before_run(self, run_context):
           self._step += 1
           return tf.train.SessionRunArgs(loss)  # Asks for loss value.
@@ -119,13 +128,13 @@ def dynamic_train():
 
             format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
                           'sec/batch)')
-            print (format_str % (datetime.now(), self._step + steps - FLAGS.max_steps, loss_value,
+            print (format_str % (datetime.now(), self._step + steps, loss_value,
                                  examples_per_sec, sec_per_batch))
           
 	def end(self, session):
             # record variables
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-	    cur_step = steps
+	    cur_step = steps + FLAGS.max_steps
 	    with open("steps.txt", "a") as file:
 	      file.write(str(cur_step) + ' ')
 	    if(cur_step >= 400000):
@@ -195,13 +204,6 @@ def dynamic_train():
               print(parameters['w_out'].shape)
               print(parameters['b_out'].shape)
 
-	    save_path = self._saver.save(session, "cifar10_dynamic_train_after_restruct/model.ckpt-{}".format(cur_step))
-            with open("cifar10_dynamic_train_after_restruct/struct{}.txt".format(cur_step), "w") as file:
-              file.write(str(parameters['b_conv1'].shape[0]) + ' ')
-              file.write(str(parameters['b_conv2'].shape[0]) + ' ')
-              file.write(str(parameters['w_fc1'].shape[1]) + ' ')
-              file.write(str(parameters['w_fc2'].shape[1]))
-
       with tf.train.MonitoredTrainingSession(
           checkpoint_dir=FLAGS.train_dir,
           hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
@@ -212,7 +214,7 @@ def dynamic_train():
               log_device_placement=FLAGS.log_device_placement)) as mon_sess:
         while not mon_sess.should_stop():
           mon_sess.run(train_op)
-      #steps += FLAGS.max_steps
+      steps += FLAGS.max_steps
       # print("steps: %d" % steps)
   
 
@@ -221,6 +223,12 @@ def main(argv=None):  # pylint: disable=unused-argument
   if tf.gfile.Exists(FLAGS.train_dir):
     tf.gfile.DeleteRecursively(FLAGS.train_dir)
   tf.gfile.MakeDirs(FLAGS.train_dir)
+  if tf.gfile.Exists("cifar10_dynamic_train_before_restruct"):
+    tf.gfile.DeleteRecursively("cifar10_dynamic_train_before_restruct")
+  tf.gfile.MakeDirs("cifar10_dynamic_train_before_restruct")
+  if tf.gfile.Exists("cifar10_dynamic_train_after_restruct"):
+    tf.gfile.DeleteRecursively("cifar10_dynamic_train_after_restruct")
+  tf.gfile.MakeDirs("cifar10_dynamic_train_after_restruct")
   dynamic_train()
 
 

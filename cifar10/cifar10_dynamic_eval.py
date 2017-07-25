@@ -49,7 +49,7 @@ tf.app.flags.DEFINE_string('eval_dir', 'cifar10_dynamic_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', 'cifar10_dynamic_train_after_restruct',
+tf.app.flags.DEFINE_string('checkpoint_dir', 'cifar10_dynamic_train_before_restruct',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -57,7 +57,8 @@ tf.app.flags.DEFINE_integer('num_examples', 10000,
                             """Number of examples to run.""")
 tf.app.flags.DEFINE_boolean('run_once', True,
                          """Whether to run eval only once.""")
-
+tf.app.flags.DEFINE_integer('options', 0,
+                         """Which record to evaluate.""")
 
 def eval_once(saver, summary_writer, top_k_op, summary_op):
   """Run Eval once.
@@ -122,10 +123,15 @@ def evaluate():
 
     # Build a Graph that computes the logits predictions from the
     # inference model.
-    # logits = cifar10.inference_eval(images)
-    # logits = cifar10.inference_eval_restruct(images, True)
-    logits = cifar10.inference_eval_restruct(images, False)
-
+    if FLAGS.options == 0:
+      logits = cifar10.inference_eval(images)
+    elif FLAGS.options == 1:
+      logits = cifar10.inference_eval_restruct(images, True)
+    elif FLAGS.options ==2:
+      logits = cifar10.inference_eval_restruct(images, False)
+    else:
+      print("wrong options, exit")
+      exit(1)
     # Calculate predictions.
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
@@ -152,6 +158,7 @@ def main(argv=None):  # pylint: disable=unused-argument
   if tf.gfile.Exists(FLAGS.eval_dir):
     tf.gfile.DeleteRecursively(FLAGS.eval_dir)
   tf.gfile.MakeDirs(FLAGS.eval_dir)
+  print("options: %d" % FLAGS.options)
   evaluate()
 
 

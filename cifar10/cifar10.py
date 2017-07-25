@@ -188,22 +188,25 @@ def inputs(eval_data):
     labels = tf.cast(labels, tf.float16)
   return images, labels
 
-def inference_eval_restruct(images, before):
+def inference_eval_restruct(images, before, last_step = None):
   # We instantiate all variables using tf.get_variable() instead of
   # tf.Variable() in order to share variables across multiple GPU training runs.
   # If we only ran this model on a single GPU, we could simplify this function
   # by replacing all instances of tf.get_variable() with tf.Variable().
   #
   # conv1
-  with open("steps.txt", "r") as file:
-    steps = file.readlines()[0].split()
-    last_step = int(steps[-1])
+  if last_step == None:
+    with open("steps.txt", "r") as file:
+      steps = file.readlines()[0].split()
+      last_step = int(steps[-1])
   print("last_step: %d" % last_step)
 
   if before:
+    print("evaluating step %d before restruction" % last_step)
     with open("cifar10_dynamic_train_before_restruct/struct{}.txt".format(last_step), "r") as file:
       sizes = file.readlines()[0].split()
   else:
+    print("evaluating step %d after restruction" % last_step)
     with open("cifar10_dynamic_train_after_restruct/struct{}.txt".format(last_step), "r") as file:
       sizes = file.readlines()[0].split()
 
