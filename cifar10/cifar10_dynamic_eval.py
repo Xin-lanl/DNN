@@ -125,10 +125,13 @@ def evaluate():
     # inference model.
     if FLAGS.options == 0:
       logits = cifar10.inference_eval(images)
+      FLAGS.checkpoint_dir = "cifar10_dynamic_train"
     elif FLAGS.options == 1:
       logits = cifar10.inference_eval_restruct(images, True)
+      FLAGS.checkpoint_dir = "cifar10_dynamic_train_before_restruct"
     elif FLAGS.options ==2:
       logits = cifar10.inference_eval_restruct(images, False)
+      FLAGS.checkpoint_dir = "cifar10_dynamic_train_after_restruct"
     else:
       print("wrong options, exit")
       exit(1)

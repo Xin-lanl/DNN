@@ -48,7 +48,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', 'cifar10_dynamic_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_steps', 10000,
+tf.app.flags.DEFINE_integer('max_steps', 5000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -71,8 +71,9 @@ def dynamic_train():
     # r0=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # print ("@test mem:%dM" % (r0/1024))
     """Train CIFAR-10 for a number of steps."""
-    # tf.reset_default_graph()
+    tf.reset_default_graph()
     with tf.Graph().as_default():
+      step_this_round = FLAGS.max_steps
       # print(FLAGS.stable)
       global_step = tf.contrib.framework.get_or_create_global_step()
       # Get images and labels for CIFAR-10.
@@ -214,7 +215,7 @@ def dynamic_train():
               log_device_placement=FLAGS.log_device_placement)) as mon_sess:
         while not mon_sess.should_stop():
           mon_sess.run(train_op)
-      steps += FLAGS.max_steps
+      steps += step_this_round
       # print("steps: %d" % steps)
   
 

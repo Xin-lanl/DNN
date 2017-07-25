@@ -50,7 +50,7 @@ FLAGS = tf.app.flags.FLAGS
 # Basic model parameters.
 tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'cifar10_data',
+tf.app.flags.DEFINE_string('data_dir', '/tmp/cifar10_data',
                            """Path to the CIFAR-10 data directory.""")
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
@@ -200,7 +200,7 @@ def inference_eval_restruct(images, before, last_step = None):
       steps = file.readlines()[0].split()
       last_step = int(steps[-1])
   print("last_step: %d" % last_step)
-
+  
   if before:
     print("evaluating step %d before restruction" % last_step)
     with open("cifar10_dynamic_train_before_restruct/struct{}.txt".format(last_step), "r") as file:
