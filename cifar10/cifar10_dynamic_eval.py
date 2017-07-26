@@ -60,7 +60,7 @@ tf.app.flags.DEFINE_boolean('run_once', True,
 tf.app.flags.DEFINE_integer('options', 0,
                          """Which record to evaluate.""")
 
-def eval_once(saver, summary_writer, top_k_op, summary_op):
+def eval_once(saver, summary_writer, top_k_op, summary_op, step = None):
   """Run Eval once.
 
   Args:
@@ -70,18 +70,20 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
     summary_op: Summary op.
   """
   with tf.Session() as sess:
-    ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
-    if ckpt and ckpt.model_checkpoint_path:
-      # Restores from checkpoint
-      saver.restore(sess, ckpt.model_checkpoint_path)
-      # Assuming model_checkpoint_path looks something like:
-      #   /my-favorite-path/cifar10_train/model.ckpt-0,
-      # extract global_step from it.
-      global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
+    if step == None:
+      ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+      if ckpt and ckpt.model_checkpoint_path:
+        # Restores from checkpoint
+        saver.restore(sess, ckpt.model_checkpoint_path)
+        # Assuming model_checkpoint_path looks something like:
+        #   /my-favorite-path/cifar10_train/model.ckpt-0,
+        # extract global_step from it.
+        global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
+      else:
+        print('No checkpoint file found')
+        return
     else:
-      print('No checkpoint file found')
-      return
-
+      saver.restore(sess, FLAGS.checkpoint_dir+"/model.ckpt-{}".format(step))
     # Start the queue runners.
     coord = tf.train.Coordinator()
     try:
@@ -116,44 +118,52 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
 
 def evaluate():
   """Eval CIFAR-10 for a number of steps."""
-  with tf.Graph().as_default() as g:
-    # Get images and labels for CIFAR-10.
-    eval_data = FLAGS.eval_data == 'test'
-    images, labels = cifar10.inputs(eval_data=eval_data)
-
-    # Build a Graph that computes the logits predictions from the
-    # inference model.
+  with open("steps.txt", "r") as file:
+    steps = file.readlines()[0].split()
     if FLAGS.options == 0:
-      logits = cifar10.inference_eval(images)
-      FLAGS.checkpoint_dir = "cifar10_dynamic_train"
-    elif FLAGS.options == 1:
-      logits = cifar10.inference_eval_restruct(images, True)
-      FLAGS.checkpoint_dir = "cifar10_dynamic_train_before_restruct"
-    elif FLAGS.options ==2:
-      logits = cifar10.inference_eval_restruct(images, False)
-      FLAGS.checkpoint_dir = "cifar10_dynamic_train_after_restruct"
+      steps = [steps[-1]]
     else:
-      print("wrong options, exit")
-      exit(1)
-    # Calculate predictions.
-    top_k_op = tf.nn.in_top_k(logits, labels, 1)
+      steps = steps[1:-1]
+  for step in steps:
+    print("step %s:" % step)
+    with tf.Graph().as_default() as g:
+      # Get images and labels for CIFAR-10.
+      eval_data = FLAGS.eval_data == 'test'
+      images, labels = cifar10.inputs(eval_data=eval_data)
 
-    # Restore the moving average version of the learned variables for eval.
-    variable_averages = tf.train.ExponentialMovingAverage(
-        cifar10.MOVING_AVERAGE_DECAY)
-    variables_to_restore = variable_averages.variables_to_restore()
-    saver = tf.train.Saver(variables_to_restore)
+      # Build a Graph that computes the logits predictions from the
+      # inference model.
+      if FLAGS.options == 0:
+        logits = cifar10.inference_eval(images)
+        FLAGS.checkpoint_dir = "cifar10_dynamic_train"
+      elif FLAGS.options == 1:
+        logits = cifar10.inference_eval_restruct(images, True, int(step))
+        FLAGS.checkpoint_dir = "cifar10_dynamic_train_before_restruct"
+      elif FLAGS.options ==2:
+        logits = cifar10.inference_eval_restruct(images, False, int(step))
+        FLAGS.checkpoint_dir = "cifar10_dynamic_train_after_restruct"
+      else:
+        print("wrong options, exit")
+        exit(1)
+      # Calculate predictions.
+      top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
-    # Build the summary operation based on the TF collection of Summaries.
-    summary_op = tf.summary.merge_all()
+      # Restore the moving average version of the learned variables for eval.
+      variable_averages = tf.train.ExponentialMovingAverage(
+          cifar10.MOVING_AVERAGE_DECAY)
+      variables_to_restore = variable_averages.variables_to_restore()
+      saver = tf.train.Saver(variables_to_restore)
 
-    summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
+      # Build the summary operation based on the TF collection of Summaries.
+      summary_op = tf.summary.merge_all()
 
-    while True:
-      eval_once(saver, summary_writer, top_k_op, summary_op)
-      if FLAGS.run_once:
-        break
-      time.sleep(FLAGS.eval_interval_secs)
+      summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
+
+      while True:
+        eval_once(saver, summary_writer, top_k_op, summary_op, int(step))
+        if FLAGS.run_once:
+          break
+        time.sleep(FLAGS.eval_interval_secs)
 
 
 def main(argv=None):  # pylint: disable=unused-argument
