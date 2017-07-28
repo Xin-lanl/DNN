@@ -48,7 +48,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', 'cifar10_dynamic_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_steps', 5000,
+tf.app.flags.DEFINE_integer('max_steps', 4000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -56,16 +56,18 @@ tf.app.flags.DEFINE_integer('log_frequency', 10,
                             """How often to log results to the console.""")
 tf.app.flags.DEFINE_boolean('stable', False,
                             """Training stop flag.""")
-tf.app.flags.DEFINE_boolean('dropout_prob', 0.5,
+tf.app.flags.DEFINE_float('dropout_prob', 0.5,
                             """Training stop flag.""")
-tf.app.flags.DEFINE_boolean('dropout_prob2', 0.5,
+tf.app.flags.DEFINE_float('dropout_prob2', 0.5,
+                            """Training stop flag.""")
+tf.app.flags.DEFINE_float('remove_rate', 0.05,
                             """Training stop flag.""")
 
 def dynamic_train():
   start = True
   steps = 0
   parameters = {}
-  max_training_steps = 400000
+  max_training_steps = 500000
   while steps < max_training_steps:
     print("training cifar10 in steps: %d" % steps)
     # r0=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -138,7 +140,7 @@ def dynamic_train():
 	    cur_step = steps + FLAGS.max_steps
 	    with open("steps.txt", "a") as file:
 	      file.write(str(cur_step) + ' ')
-	    if(cur_step >= 400000):
+	    if(cur_step >= max_training_steps):
 	      print("reaching end")
 	      # FLAGS.stable = True
 	      save_path = self._saver.save(session, "cifar10_dynamic_train/model.ckpt-{}".format(cur_step))
@@ -180,7 +182,8 @@ def dynamic_train():
             if not FLAGS.stable:
 	      if dim2 == dim3:
 	        print("reduce layer fc1")
-                FLAGS.stable, selected, r = decomposition.random_dropout(parameters['w_fc2'], dim3, dim2)
+                FLAGS.stable, selected, r = decomposition.random_dropout(parameters['w_fc2'], dim3, dim2, rate=FLAGS.remove_rate)
+		FLAGS.remove_rate *= 0.9
 		FLAGS.dropout_prob = min(FLAGS.dropout_prob * r / dim2, 1)
 		dim2 = r
 	        parameters['w_fc1'] = parameters['w_fc1'][:, selected]
@@ -194,7 +197,8 @@ def dynamic_train():
 	        parameters['w_fc2'] = parameters['w_fc2'][:, selected]
 		parameters['b_fc2'] = parameters['b_fc2'][selected]
 		parameters['w_out'] = parameters['w_out'][selected, :]
-		FLAGS.max_steps *= 2
+		# FLAGS.max_steps *= 2
+		FLAGS.max_steps += 4000
 	      if FLAGS.stable:
 		FLAGS.max_steps = max_training_steps - cur_step
 	      print("reduced size info, with r={}".format(r))
@@ -230,6 +234,8 @@ def main(argv=None):  # pylint: disable=unused-argument
   if tf.gfile.Exists("cifar10_dynamic_train_after_restruct"):
     tf.gfile.DeleteRecursively("cifar10_dynamic_train_after_restruct")
   tf.gfile.MakeDirs("cifar10_dynamic_train_after_restruct")
+  if tf.gfile.Exists("steps.txt"):
+    tf.gfile.Remove("steps.txt")
   dynamic_train()
 
 
