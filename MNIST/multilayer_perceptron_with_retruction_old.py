@@ -17,8 +17,8 @@ batch_size = 100
 display_step = 1
 
 # Network Parameters
-n_hidden_1 = 512 # 1st layer number of features
-n_hidden_2 = 512 # 2nd layer number of features
+n_hidden_1 = 256 # 1st layer number of features
+n_hidden_2 = 256 # 2nd layer number of features
 n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
@@ -33,14 +33,12 @@ def multilayer_perceptron(x, weights, biases):
     layer_1 = tf.nn.relu(layer_1)
     # layer_1 = tf.nn.dropout(layer_1, 0.8)
     # Hidden layer with RELU activation
-    importance_vecs1 = tf.multiply(tf.reduce_mean(tf.abs(layer_1), axis=0), tf.reduce_mean(tf.abs(weights['h2'])))
     layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
     layer_2 = tf.nn.relu(layer_2)
     # layer_2 = tf.nn.dropout(layer_2, 0.8)
     # Output layer with linear activation
-    importance_vecs2 = tf.multiply(tf.reduce_mean(tf.abs(layer_2), axis=0), tf.reduce_mean(tf.abs(weights['out']), axis=1))
     out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
-    return (importance_vecs1, importance_vecs2, out_layer)
+    return out_layer
 
 # init weights
 w1 = np.random.randn(n_input, n_hidden_1)
@@ -58,8 +56,6 @@ stable = False
 
 while epoch < training_epochs:
 
-    v1 = np.zeros(n_hidden_1)
-    v2 = np.zeros(n_hidden_2)
     # update weights
     weights = {
         'h1': tf.Variable(w1, dtype=tf.float32),
@@ -73,7 +69,7 @@ while epoch < training_epochs:
     }
 
     # Construct model
-    importance_vecs1, importance_vecs2, pred = multilayer_perceptron(x, weights, biases)
+    pred = multilayer_perceptron(x, weights, biases)
     # Define loss and optimizer
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
@@ -97,16 +93,13 @@ while epoch < training_epochs:
             for i in range(total_batch):
                 batch_x, batch_y = mnist.train.next_batch(batch_size)
                 # Run optimization op (backprop) and cost op (to get loss value)
-                _, c, iv1, iv2 = sess.run([optimizer, cost, importance_vecs1, importance_vecs2], feed_dict={x: batch_x,
+                _, c = sess.run([optimizer, cost], feed_dict={x: batch_x,
                                                               y: batch_y})
                 # print(iv1.shape)
                 # print(iv2.shape)
                 # print(v1.shape)
                 # print(v2.shape)
 
-                v1 = np.add(v1, iv1)
-                v2 = np.add(v2, iv2)
-                
                 # Compute average loss
                 avg_cost += c / total_batch
 
@@ -144,18 +137,75 @@ while epoch < training_epochs:
             b2 = biases['b2'].eval()
             b3 = biases['out'].eval()
 
-            selected_1, selected_2 = decomposition.importance_dropout(v1, v2, rate=rate)
-            rate = rate*0.9
-            print("layers: %d %d" % (n_hidden_1, n_hidden_2))
-            n_hidden_1 = len(selected_1)
-            n_hidden_2 = len(selected_2)
-            print("reduced layers: %d %d" % (n_hidden_1, n_hidden_2))
-            w1 = w1[:, selected_1]
-            b1 = b1[selected_1]
-            w2 = w2[selected_1, :]
-            w2 = w2[:, selected_2]
-            b2 = b2[selected_2]
-            w3 = w3[selected_2, :]
+            # selected_1, selected_2 = decomposition.importance_dropout(v1, v2, rate=rate)
+            # rate = rate*0.85
+            # print("layers: %d %d" % (n_hidden_1, n_hidden_2))
+            # n_hidden_1 = len(selected_1)
+            # n_hidden_2 = len(selected_2)
+            # print("reduced layers: %d %d" % (n_hidden_1, n_hidden_2))
+            # w1 = w1[:, selected_1]
+            # b1 = b1[selected_1]
+            # w2 = w2[selected_1, :]
+            # w2 = w2[:, selected_2]
+            # b2 = b2[selected_2]
+            # w3 = w3[selected_2, :]
+
+
+            if n_hidden_1 == n_hidden_2:
+                print("reduce rank of fc layer 1")
+                print(w2.shape)
+
+                ########## debug
+                # s, v, d = np.linalg.svd(w2, full_matrices=False)
+                # simp_v = v[np.where(v>v[0]*0.1)]
+                # r = len(simp_v)
+                # print("size of r: %s" % r)
+                # simp_s = s[:, 0:r]
+                # simp_d = d[0:r, :]
+                # w2 = np.matmul(np.matmul(simp_s, np.diag(simp_v)), simp_d)
+                # w2_temp = w2
+                # flag = True
+                ########## debug
+
+                # flag, w1_update_factor, w2, r = mf_by_sgd(w2, n_hidden_2, n_hidden_1)
+                # flag, w1_update_factor, w2, r = mf_by_svd(w2, n_hidden_2, n_hidden_1)
+                # flag, w1_update_factor, w2, r = mf_by_half_identity(w2, n_hidden_2, n_hidden_1)
+
+                ########## debug
+                # w2_app = np.matmul(w1_update_factor, w2)
+                # diff_abs = np.abs(w2_app - w2_temp)
+                # print("max abs df: %s" % np.max(diff_abs))
+                # print("mean abs df: %s" % np.mean(diff_abs))
+                ########## debug
+                flag, selected, r = decomposition.random_dropout(w2, n_hidden_2, n_hidden_1)
+                # flag, selected, r = dropout_last(w2, n_hidden_2, n_hidden_1)
+                
+                epoch = epoch + 1
+                if flag == True:
+                    stable = True
+                    break
+                n_hidden_1 = r 
+                print("reduced rank: %s" % r)
+                # w1 = np.matmul(w1, w1_update_factor)
+                # b1 = np.matmul(b1, w1_update_factor)
+                w1 = w1[:, selected]
+                b1 = b1[selected]
+                w2 = w2[selected, :]
+            else:
+                print("reduce fc layer 2")
+                # flag, w2_update_factor, w3, r = mf_by_sgd(w3, n_hidden_2, n_hidden_1, 1)
+                # flag, w2_update_factor, w3, r = mf_by_svd(w3, n_hidden_2, n_hidden_1, 1)
+                # flag, w2_update_factor, w3, r = mf_by_half_identity(w3, n_hidden_2, n_hidden_1)
+                flag, selected, r = decomposition.random_dropout(w2, n_hidden_2, n_hidden_1)
+                # flag, selected, r = dropout_last(w2, n_hidden_2, n_hidden_1)
+
+                n_hidden_2 = r 
+                # w2 = np.matmul(w2, w2_update_factor)
+                # b2 = np.matmul(b2, w2_update_factor)
+                w2 = w2[:, selected]
+                b2 = b2[selected]
+                w3 = w3[selected, :]
+                # restructure_epoch = restructure_epoch * 2
 
             end_time = time.time()
             print("reconstruct time in epoch %s: %s" % (epoch, end_time - start_time))

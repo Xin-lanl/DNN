@@ -14,7 +14,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 import tensorflow as tf
-
+import time
 # Parameters
 learning_rate = 0.001
 training_epochs = 15
@@ -22,8 +22,8 @@ batch_size = 100
 display_step = 1
 
 # Network Parameters
-n_hidden_1 = 256 # 1st layer number of features
-n_hidden_2 = 256 # 2nd layer number of features
+n_hidden_1 = 512 # 1st layer number of features
+n_hidden_2 = 512 # 2nd layer number of features
 n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
@@ -72,6 +72,7 @@ with tf.Session() as sess:
 
     # Training cycle
     for epoch in range(training_epochs):
+        start_time = time.time()
         avg_cost = 0.
         total_batch = int(mnist.train.num_examples/batch_size)
         # Loop over all batches
@@ -82,6 +83,8 @@ with tf.Session() as sess:
                                                           y: batch_y})
             # Compute average loss
             avg_cost += c / total_batch
+        end_time = time.time()
+        print("epoch training time: %s" % (end_time - start_time))
         # Display logs per epoch step
         if epoch % display_step == 0:
             print("Epoch:", '%04d' % (epoch+1), "cost=", \

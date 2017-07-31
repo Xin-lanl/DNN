@@ -232,6 +232,18 @@ def random_dropout(W_, m, n, rate = 0.05):
 		rest = np.sort(np.random.choice(m, r, replace=False))
 		return (False, rest, r)
 
+def importance_dropout(v1, v2, rate=0.05):
+	# temp1 = np.sort(v1)
+	# temp2 = np.sort(v2)
+	# threshold1 = np.mean(temp1[-10:]) * rate
+	# threshold2 = np.mean(temp2[-10:]) * rate
+	threshold1 = np.max(v1) * rate
+	threshold2 = np.max(v2) * rate
+	selected_1 = np.where(v1 > threshold1)
+	selected_2 = np.where(v2 > threshold2)
+	return (selected_1[0], selected_2[0])
+
+
 def dropout_last(W_, m, n, rate = 0.05):
 
 	if m == n:
