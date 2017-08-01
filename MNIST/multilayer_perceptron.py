@@ -17,7 +17,7 @@ import tensorflow as tf
 import time
 # Parameters
 learning_rate = 0.001
-training_epochs = 15
+training_epochs = 150
 batch_size = 100
 display_step = 1
 
@@ -28,8 +28,8 @@ n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
 # tf Graph input
-x = tf.placeholder("float", [None, n_input])
-y = tf.placeholder("float", [None, n_classes])
+x = tf.placeholder(tf.float64, [None, n_input])
+y = tf.placeholder(tf.float64, [None, n_classes])
 
 
 # Create model
@@ -46,14 +46,14 @@ def multilayer_perceptron(x, weights, biases):
 
 # Store layers weight & bias
 weights = {
-    'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-    'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-    'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes]))
+    'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1], dtype=tf.float64), dtype=tf.float64),
+    'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2], dtype=tf.float64), dtype=tf.float64),
+    'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes], dtype=tf.float64), dtype=tf.float64)
 }
 biases = {
-    'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-    'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-    'out': tf.Variable(tf.random_normal([n_classes]))
+    'b1': tf.Variable(tf.random_normal([n_hidden_1], dtype=tf.float64), dtype=tf.float64),
+    'b2': tf.Variable(tf.random_normal([n_hidden_2], dtype=tf.float64), dtype=tf.float64),
+    'out': tf.Variable(tf.random_normal([n_classes], dtype=tf.float64), dtype=tf.float64)
 }
 
 # Construct model

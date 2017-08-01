@@ -12,7 +12,7 @@ import time
 import decomposition
 # Parameters
 learning_rate = 0.001
-training_epochs = 130
+training_epochs = 150
 batch_size = 100
 display_step = 1
 
@@ -23,8 +23,8 @@ n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
 # tf Graph input
-x = tf.placeholder("float", [None, n_input])
-y = tf.placeholder("float", [None, n_classes])
+x = tf.placeholder(tf.float64, [None, n_input])
+y = tf.placeholder(tf.float64, [None, n_classes])
 
 # Create model
 def multilayer_perceptron(x, weights, biases):
@@ -53,7 +53,7 @@ b3 = np.random.randn(n_classes)
 
 epoch = 0
 restructure_epoch = 5
-rate = 0.05
+rate = 0.3
 stable = False
 
 while epoch < training_epochs:
@@ -62,14 +62,14 @@ while epoch < training_epochs:
     v2 = np.zeros(n_hidden_2)
     # update weights
     weights = {
-        'h1': tf.Variable(w1, dtype=tf.float32),
-        'h2': tf.Variable(w2, dtype=tf.float32),
-        'out': tf.Variable(w3, dtype=tf.float32)
+        'h1': tf.Variable(w1, dtype=tf.float64),
+        'h2': tf.Variable(w2, dtype=tf.float64),
+        'out': tf.Variable(w3, dtype=tf.float64)
     }
     biases = {
-        'b1': tf.Variable(b1, dtype=tf.float32),
-        'b2': tf.Variable(b2, dtype=tf.float32),
-        'out': tf.Variable(b3, dtype=tf.float32)
+        'b1': tf.Variable(b1, dtype=tf.float64),
+        'b2': tf.Variable(b2, dtype=tf.float64),
+        'out': tf.Variable(b3, dtype=tf.float64)
     }
 
     # Construct model
@@ -113,7 +113,7 @@ while epoch < training_epochs:
             end_time = time.time()
             print("epoch training time: %s" % (end_time - start_time))
             # Display logs per epoch step
-            print("Epoch:", '%04d' % (sub_epoch+1), "cost=", \
+            print("Epoch:", '%04d' % (epoch+sub_epoch+1), "cost=", \
                     "{:.9f}".format(avg_cost))
 
             #Test model
@@ -145,7 +145,8 @@ while epoch < training_epochs:
             b3 = biases['out'].eval()
 
             selected_1, selected_2 = decomposition.importance_dropout(v1, v2, rate=rate)
-            rate = rate*0.9
+            # if rate < 0.3:
+	    rate = rate*0.9
             print("layers: %d %d" % (n_hidden_1, n_hidden_2))
             n_hidden_1 = len(selected_1)
             n_hidden_2 = len(selected_2)
