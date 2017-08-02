@@ -27,19 +27,22 @@ x = tf.placeholder(tf.float64, [None, n_input])
 y = tf.placeholder(tf.float64, [None, n_classes])
 
 # Create model
-def multilayer_perceptron(x, weights, biases):
+def multilayer_perceptron(x, weights, biases, n1, n2, n3):
     # Hidden layer with RELU activation
     layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
     layer_1 = tf.nn.relu(layer_1)
     # layer_1 = tf.nn.dropout(layer_1, 0.8)
     # Hidden layer with RELU activation
-    importance_vecs1 = tf.multiply(tf.reduce_mean(tf.abs(layer_1), axis=0), tf.reduce_mean(tf.abs(weights['h2'])))
+    # importance_vecs1 = tf.multiply(tf.reduce_mean(tf.abs(layer_1), axis=0), tf.reduce_mean(tf.abs(weights['h2']), axis=1))
     layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
     layer_2 = tf.nn.relu(layer_2)
     # layer_2 = tf.nn.dropout(layer_2, 0.8)
     # Output layer with linear activation
-    importance_vecs2 = tf.multiply(tf.reduce_mean(tf.abs(layer_2), axis=0), tf.reduce_mean(tf.abs(weights['out']), axis=1))
     out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
+    inf_vecs2 = tf.matmul(tf.abs(weights['out']), tf.reshape(tf.reduce_mean(tf.abs(out_layer), axis=0), [n3, 1]))
+    importance_vecs2 = tf.multiply(tf.reduce_mean(tf.abs(layer_2), axis=0), tf.reshape(inf_vecs2, [n2]))
+    inf_vecs1 = tf.matmul(tf.abs(weights['h2']), tf.reshape(importance_vecs2, [n2, 1]))
+    importance_vecs1 = tf.multiply(tf.reduce_mean(tf.abs(layer_1), axis=0), tf.reshape(inf_vecs1, [n1]))
     return (importance_vecs1, importance_vecs2, out_layer)
 
 # init weights
@@ -52,8 +55,8 @@ b3 = np.random.randn(n_classes)
 
 
 epoch = 0
-restructure_epoch = 5
-rate = 0.3
+restructure_epoch = 10
+rate = 0.15
 stable = False
 
 while epoch < training_epochs:
@@ -73,7 +76,7 @@ while epoch < training_epochs:
     }
 
     # Construct model
-    importance_vecs1, importance_vecs2, pred = multilayer_perceptron(x, weights, biases)
+    importance_vecs1, importance_vecs2, pred = multilayer_perceptron(x, weights, biases, n_hidden_1, n_hidden_2, n_classes)
     # Define loss and optimizer
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
@@ -145,8 +148,9 @@ while epoch < training_epochs:
             b3 = biases['out'].eval()
 
             selected_1, selected_2 = decomposition.importance_dropout(v1, v2, rate=rate)
-            # if rate < 0.3:
-	    rate = rate*0.9
+            if rate < 0.35:
+	      rate = rate*1.05
+	    print("rate %.2f" % rate)
             print("layers: %d %d" % (n_hidden_1, n_hidden_2))
             n_hidden_1 = len(selected_1)
             n_hidden_2 = len(selected_2)

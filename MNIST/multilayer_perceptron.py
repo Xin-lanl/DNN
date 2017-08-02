@@ -22,8 +22,8 @@ batch_size = 100
 display_step = 1
 
 # Network Parameters
-n_hidden_1 = 512 # 1st layer number of features
-n_hidden_2 = 512 # 2nd layer number of features
+n_hidden_1 = 300 # 1st layer number of features
+n_hidden_2 = 100 # 2nd layer number of features
 n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
@@ -37,9 +37,11 @@ def multilayer_perceptron(x, weights, biases):
     # Hidden layer with RELU activation
     layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
     layer_1 = tf.nn.relu(layer_1)
+    # layer_1 = tf.nn.dropout(layer_1, 0.8)
     # Hidden layer with RELU activation
     layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
     layer_2 = tf.nn.relu(layer_2)
+    # layer_2 = tf.nn.dropout(layer_2, 0.9)
     # Output layer with linear activation
     out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
     return out_layer
